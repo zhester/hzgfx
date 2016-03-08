@@ -12,21 +12,7 @@ color Module Unit Tests
 
 import unittest
 
-
-# allow tests without installation
-try:
-    import color
-except ImportError:
-    import os
-    import sys
-    cdir = os.path.dirname( os.path.realpath( __file__ ) )
-    pdir = os.path.dirname( cdir )
-    mdir = os.path.join( pdir, 'hzgfx' )
-    sys.path.append( mdir )
-    import color
-
-
-__version__ = '0.0.0'
+import hzgfx.color
 
 
 #=============================================================================
@@ -60,7 +46,7 @@ class ColorTests( unittest.TestCase ):
                 return 3
         cs = CSeq()
 
-        # test cases as: input, exected integer, expected tuple
+        # test cases as: input, expected integer, expected tuple
         cases = [
             (          0, 0x000000, (    0,    0,    0 ) ),
             (          1, 0x000001, (    0,    0,    1 ) ),
@@ -77,7 +63,7 @@ class ColorTests( unittest.TestCase ):
         ]
 
         # set up a Color object under test
-        c = color.Color()
+        c = hzgfx.color.Color()
 
         # run each test case
         for case in cases:
