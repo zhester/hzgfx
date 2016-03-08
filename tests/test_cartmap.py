@@ -252,6 +252,8 @@ class TestPlane( unittest.TestCase ):
         self.assertAlmostEqual( 3.0, plane.t )
         self.assertEqual( 10, plane.width )
         self.assertEqual( 10, plane.w )
+        with self.assertRaises( AttributeError ):
+            dummy = plane.fakeyfaker
 
 
     #=========================================================================
@@ -269,7 +271,7 @@ class TestPlane( unittest.TestCase ):
 
 
 #=============================================================================
-class TestMap( object ):
+class TestMap( unittest.TestCase ):
     """
     Tests the Map class.
     """
@@ -280,8 +282,15 @@ class TestMap( object ):
         """
         Tests the __init__ method.
         """
-        ### ZIH
-        pass
+        pmap = hzgfx.cartmap.Map()
+        exp_siline = hzgfx.cartmap.SILine( 1.0, 0.0 )
+        self.assertTupleEqual( exp_siline, pmap.horizontal )
+        self.assertTupleEqual( exp_siline, pmap.vertical )
+        pmap = hzgfx.cartmap.Map( ( 1.0, 10.0 ), ( -1.0, 0.0 ) )
+        exp_hline = hzgfx.cartmap.SILine( 1.0, 10.0 )
+        exp_vline = hzgfx.cartmap.SILine( -1.0, 0.0 )
+        self.assertTupleEqual( exp_hline, pmap.horizontal )
+        self.assertTupleEqual( exp_vline, pmap.vertical )
 
 
     #=========================================================================
@@ -289,8 +298,13 @@ class TestMap( object ):
         """
         Tests the map_extremes method.
         """
-        ### ZIH
-        pass
+        splane = hzgfx.cartmap.Plane( 100 )
+        tplane = hzgfx.cartmap.Plane( 25 )
+        pmap = hzgfx.cartmap.Map.map_extremes( splane, tplane )
+        exp_hline = hzgfx.cartmap.SILine( 0.25, 0.0 )
+        exp_vline = hzgfx.cartmap.SILine( 0.25, 0.0 )
+        self.assertTupleEqual( exp_hline, pmap.horizontal )
+        self.assertTupleEqual( exp_vline, pmap.vertical )
 
 
     #=========================================================================
@@ -298,8 +312,33 @@ class TestMap( object ):
         """
         Tests the map_clipped method.
         """
-        ### ZIH
-        pass
+        splane = hzgfx.cartmap.Plane( ( 100, 50 ) )
+        tplane = hzgfx.cartmap.Plane( (  25, 25 ) )
+        pmap = hzgfx.cartmap.Map.map_clipped( splane, tplane )
+        exp_hline = hzgfx.cartmap.SILine( 0.25, 0.0 )
+        exp_vline = hzgfx.cartmap.SILine( 0.25, 6.25 )
+        self.assertTupleEqual( exp_hline, pmap.horizontal )
+        self.assertTupleEqual( exp_vline, pmap.vertical )
+
+
+    #=========================================================================
+    def test_translate( self ):
+        """
+        Tests the translate method.
+        """
+
+        # Test a mapping between a source and a vertically-clipped target.
+        splane = hzgfx.cartmap.Plane( ( 100, 50 ) )
+        tplane = hzgfx.cartmap.Plane( (  25, 25 ) )
+        pmap = hzgfx.cartmap.Map.map_clipped( splane, tplane )
+        exp_origin = hzgfx.cartmap.Point( 0.0, 6.25 )
+        self.assertTupleEqual( exp_origin, pmap.translate() )
+        exp_point = hzgfx.cartmap.Point( 2.5, 12.5 )
+        self.assertTupleEqual( exp_point, pmap.translate( ( 10, 25 ) ) )
+
+        ### ZIH - test horizontally-clipped targets
+        ### ZIH - test scaled mapping with map_extremes
+        ### ZIH - test negative extremes, centered origins, off-centered
 
 
 # Run tests when run directly from the shell.

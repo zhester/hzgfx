@@ -338,10 +338,10 @@ class Map( object ):
         @param target The target plane for mapping requests
         @return       A new Map instance for scaled coordinate mapping
         """
-        xslope     = target.xextent / source.xextent
-        xintercept = target.topleft.x - xslope * source.topleft.x
-        yslope     = target.yextent / source.yextent
-        yintercept = target.topleft.y - yslope * source.topleft.y
+        xslope     = target.deltax / float( source.deltax )
+        xintercept = target.left - xslope * source.left
+        yslope     = target.deltay / float( source.deltay )
+        yintercept = target.left - yslope * source.left
         return Map( ( xslope, xintercept ), ( yslope, yintercept ) )
 
 
@@ -368,25 +368,44 @@ class Map( object ):
         # Clip the vertical axis with respect to the horizontal axis.
         else:
 
-            # Determine vertical scaling for target plane.
-            vertscale = target.xextent * source.height / source.width
+            # Determine new total height of the target plane.
+            theight = source.deltay \
+                    * float( target.deltax ) / float( source.deltax )
 
             # Determine the vertical middle point of the target plane.
-            vertmid = target.top + target.yextent / 2.0
+            mid = target.top + target.deltay / 2.0
 
-            # Determine new vertical extremes for the target plane.
-            ytop = vertmid - scale / 2.0
-            ybot = vertmid + scale / 2.0
-            yext = ybot - ytop
+            # Determine new top vertical extreme for the target plane.
+            ytop = mid - theight / 2.0
 
             # Determine slope and intercept for the vertical axis mapping.
-            yslope     = yext / source.yextent
-            yintercept = ytop - yslope * source.topleft.y
+            yslope     = theight / float( source.deltay )
+            yintercept = ytop - yslope * source.top
 
             # Determine the mapping for the fixed axis.
-            xslope     = target.xextent / source.xextent
-            xintercept = target.topleft.x - xslope * source.topleft.x
+            xslope     = target.deltax / float( source.deltax )
+            xintercept = target.left - xslope * source.left
 
             # Create Map object with adjusted vertical axis.
             return Map( ( xslope, xintercept ), ( yslope, yintercept ) )
+
+
+    #=========================================================================
+    def translate( self, point = None ):
+        """
+        Translates a source point into a target point.
+
+        @param point A Point or two-tuple of the point to translate
+        @return      A Point in the target plane that corresponds to the same
+                     position in the source plane
+        """
+        if point is None:
+            point = Point( 0.0, 0.0 )
+        elif isinstance( point, Point ) == False:
+            point = Point( *point )
+        return Point(
+            ( self.horizontal.m * point.x + self.horizontal.b ),
+            ( self.vertical.m   * point.y + self.vertical.b   )
+        )
+
 
