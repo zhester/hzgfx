@@ -33,10 +33,10 @@ Scaling is used when the full range of coordinates must match between the
 input and the output.  Thus, the ranges are scaled such that their extremes
 are considered equal positions.
 
-### Clamping
+### Clipping
 
-Clamping is used when only a portion of one range must match another range.
-When clamping, information is usually eliminated at the extremes of a range.
+Clipping is used when only a portion of one range must match another range.
+When clipping, information is usually eliminated at the extremes of a range.
 
 ### Filling
 
@@ -70,9 +70,9 @@ AXIS_BOTH       = ( AXIS_HORIZONTAL | AXIS_VERTICAL )
 
 #=============================================================================
 # Two-tuples for specifying coordinates, dimensions, and coefficients
-Point     = collections.namedtuple( 'Point',        ( 'x', 'y' ) )
-Dimension = collections.namedtuple( 'Dimension',    ( 'w', 'h' ) )
-SILine    = collections.namedtuple( 'SILine', ( 'm', 'b' ) )
+Point     = collections.namedtuple( 'Point',     ( 'x', 'y' ) )
+Dimension = collections.namedtuple( 'Dimension', ( 'w', 'h' ) )
+SILine    = collections.namedtuple( 'SILine',    ( 'm', 'b' ) )
 
 
 #=============================================================================
@@ -96,12 +96,16 @@ class Axis( object ):
         """
 
         # Set coordinate value type.
-        self.type  = type( start )
+        self.type = type( start )
 
         # Look for length-specified axis.
         if stop is None:
-            self.start = self.type( 0 )
-            self.stop  = start - 1
+            if self.type is float:
+                self.start = 0.0
+                self.stop  = start
+            else:
+                self.start = 0
+                self.stop  = start
 
         # Use extreme-specified axis.
         else:
@@ -119,7 +123,10 @@ class Axis( object ):
 
         @return The numeric length of discrete values in the axis
         """
-        return abs( ( self.stop - self.start ) / self.step )
+        delta = self.delta()
+        if self.type is int:
+            return abs( delta // self.step )
+        return abs( delta / self.step )
 
 
     #=========================================================================
@@ -129,13 +136,17 @@ class Axis( object ):
 
         @return A string representation of the axis
         """
-        return '[{0.start}:{0.stop}:{0.step}]'.format( self )
+        if self.type is float:
+            fmt = '[{0.start:.3}:{0.stop:.3}:{0.step:.3}]'
+        else:
+            fmt = '[{0.start}:{0.stop}:{0.step}]'
+        return fmt.format( self )
 
 
     #=========================================================================
-    def extent( self ):
+    def delta( self ):
         """
-        Produces the numeric extent of the axis from one extreme to the other.
+        Returns the total difference between the extreme values of the axis.
 
         @return The distance from the start coordinate to the stop coordinate,
                 with negative distances indicating right/bottom start coords
@@ -177,11 +188,9 @@ class Plane( object ):
                            defaults to `xstep`
         """
 
-        # Set up basic coordinate information.
+        # Coordinate and dimension constructors
         self._cmake = Point
         self._dmake = Dimension
-        self._xtype = type( topleft[ 0 ] )
-        self._ytype = type( topleft[ 1 ] )
 
         # Default the vertical step value.
         ystep = ystep if ystep is not None else xstep
@@ -190,10 +199,12 @@ class Plane( object ):
         if bottomright is None:
 
             # Create the axes.
-            self._x = Axis( self._xtype( 0 ), topleft[ 0 ], xstep )
-            self._y = Axis( self._ytype( 0 ), topleft[ 1 ], ystep )
+            xtype = type( topleft[ 0 ] )
+            ytype = type( topleft[ 1 ] )
+            self._x = Axis( xtype( 0 ), topleft[ 0 ], xstep )
+            self._y = Axis( ytype( 0 ), topleft[ 1 ], ystep )
 
-        # Both extremes are given
+        # Both extremes are given.
         else:
 
             # Create the axes.
@@ -206,27 +217,33 @@ class Plane( object ):
         """
         Procedurally-generated attributes.
 
-        aspect         The width/height aspect ratio (can be negative)
+        aspect         The dx/dy aspect ratio (can be negative)
+        bottom|b       The bottom vertical extreme
         bottomright|br The (x,y) coordinate of the bottom-right extreme
+        deltax|dx      The difference between horizontal extremes
+        deltay|dy      The difference between veritcal extremes
         dimensions|dim The (w,h) dimensions of the plane
         height|h       The number of coordinates on the vertical axis
+        left|l         The left horizontal extreme
+        right|r        The right horizontal extreme
+        top|t          The top veritical extreme
         topleft|tl     The (x,y) coordinate of the top-left extreme
         width|w        The number of coordinates on the horizontal axis
 
         @param name The name of the attribute to retrieve
         @return     The value of the requested attribute
         """
-        if ( name == 'dimensions' ) or ( name == 'dim' ):
+        if name == 'aspect':
+            return self._x.delta() / self._y.delta()
+        elif ( name == 'dimensions' ) or ( name == 'dim' ):
             return self._dmake( len( self._x ), len( self._y ) )
-        elif name == 'aspect':
-            return self._x.extent() / self._y.extent()
-        elif name == 'top':
+        elif ( name == 'top' ) or ( name == 't' ):
             return self._y.start
-        elif name == 'left':
+        elif ( name == 'left' ) or ( name == 'l' ):
             return self._x.start
-        elif name == 'bottom':
+        elif ( name == 'bottom' ) or ( name == 'b' ):
             return self._y.stop
-        elif name == 'right':
+        elif ( name == 'right' ) or ( name == 'r' ):
             return self._x.stop
         elif ( name == 'topleft' ) or ( name == 'tl' ):
             return self._cmake( self._x.start, self._y.start )
@@ -236,10 +253,10 @@ class Plane( object ):
             return len( self._x )
         elif ( name == 'height' ) or ( name == 'h' ):
             return len( self._y )
-        elif name == 'xextent':
-            return self._x.extent()
-        elif name == 'yextent':
-            return self._y.extent()
+        elif ( name == 'deltax' ) or ( name == 'dx' ):
+            return self._x.delta()
+        elif ( name == 'deltay' ) or ( name == 'dy' ):
+            return self._y.delta()
         raise AttributeError( 'Unknown attribute: {}'.format( name ) )
 
 
@@ -258,6 +275,7 @@ class ComplexPlane( Plane ):
     """
     Extends the Cartesian Coordinate Plane class to support complex numbers.
     """
+    ### ZIH
     pass
 
 
@@ -312,7 +330,7 @@ class Map( object ):
 
     #=========================================================================
     @staticmethod
-    def map_clipped( source, target, fixed = HORIZONTAL ):
+    def map_clipped( source, target, fixed = AXIS_HORIZONTAL ):
         """
         Creates new map objects that clip the source plane within the
         boundaries of the target plane.
@@ -326,7 +344,7 @@ class Map( object ):
         """
 
         # Clip the horizontal axis with respect to the vertical axis.
-        if fixed == VERTICAL:
+        if fixed == AXIS_VERTICAL:
             ### ZIH
             pass
 
@@ -334,17 +352,24 @@ class Map( object ):
         else:
 
             # Determine vertical scaling for target plane.
-            vertscale = abs( target.xextent ) * source.height / source.width
+            vertscale = target.xextent * source.height / source.width
 
             # Determine the vertical middle point of the target plane.
-            vertmid = target.top + abs( target.yextent ) / 2.0
+            vertmid = target.top + target.yextent / 2.0
 
             # Determine new vertical extremes for the target plane.
-            ### ZIH
-            #ytop = vertmid -
-            #ybot = vertmid +
+            ytop = vertmid - scale / 2.0
+            ybot = vertmid + scale / 2.0
+            yext = ybot - ytop
 
             # Determine slope and intercept for the vertical axis mapping.
+            yslope     = yext / source.yextent
+            yintercept = ytop - yslope * source.topleft.y
+
+            # Determine the mapping for the fixed axis.
+            xslope     = target.xextent / source.xextent
+            xintercept = target.topleft.x - xslope * source.topleft.x
 
             # Create Map object with adjusted vertical axis.
+            return Map( ( xslope, xintercept ), ( yslope, yintercept ) )
 
