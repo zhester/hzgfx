@@ -15,3 +15,6 @@ Graphics Programming Tools
 __version__ = '0.0.0'
 
 
+import cartmap
+import color
+
