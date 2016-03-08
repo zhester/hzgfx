@@ -164,52 +164,65 @@ class Plane( object ):
     #=========================================================================
     def __init__(
         self,
-        topleft,
-        bottomright = None,
-        xstep       = 1,
-        ystep       = None
+        lefttop,
+        rightbot = None,
+        step     = 1
     ):
         """
         Initializes a Plane object.
 
-        Note: Coordinates are given as two-tuples of (x,y) coordinate pairs.
-        Note: Dimensions are given as two-tuples of (w,h) size pairs.
-
-        @param topleft     If `bottomright` is not given, this specifies the
-                           width and height of the plane assuming the origin
-                           (0,0) is at the top, left corner of the plane.
-                           Otherwise, this specifies the coordinates of the
-                           top, left extreme of the plane
-        @param bottomright If specified, gives coordinates of the bottom,
-                           right extreme of the plane
-        @param xstep       The distance between horizontal coordinates,
-                           defaults to 1
-        @param ystep       The distance between vertical coordinates,
-                           defaults to `xstep`
+        @param lefttop
+            Normally, this is a two-tuple of the coordinates of the top, left
+            corner of the plane.
+            If the `rightbot` argument is None or not given, this specifies
+            either the width and height of the plane (from a two-tuple), or
+            the dimension of a squre plane (from a number).
+        @param rightbot
+            Normally, this is a two-tuple of the coordinate of the bottom,
+            right corner of the plane.
+        @param step
+            The distance between individual positions in the plane.
+            If given as a single number, the step is used for both axes.
+            If given as a two-tuple, each axis uses its own step.
+            The default step is 1.
         """
 
         # Coordinate and dimension constructors
         self._cmake = Point
         self._dmake = Dimension
 
-        # Default the vertical step value.
-        ystep = ystep if ystep is not None else xstep
+        # Determine the step values.
+        if isinstance( step, ( tuple, list ) ):
+            xstep, ystep = step[ 0 : 2 ]
+        else:
+            xstep = step
+            ystep = step
 
         # Check for width/height initialization.
-        if bottomright is None:
+        if rightbot is None:
 
-            # Create the axes.
-            xtype = type( topleft[ 0 ] )
-            ytype = type( topleft[ 1 ] )
-            self._x = Axis( xtype( 0 ), topleft[ 0 ], xstep )
-            self._y = Axis( ytype( 0 ), topleft[ 1 ], ystep )
+            # Check for non-square plane initialization.
+            if isinstance( lefttop, ( tuple, list ) ):
+                left, top = lefttop[ 0 : 2 ]
+
+            # Square plane initialization.
+            else:
+                top, left = lefttop, lefttop
+
+            # Generate the default axis extremes.
+            right, bot = left, top
+            left, top  = type( left )( 0 ), type( top )( 0 )
 
         # Both extremes are given.
         else:
 
-            # Create the axes.
-            self._x = Axis( topleft[ 0 ], bottomright[ 0 ], xstep )
-            self._y = Axis( topleft[ 1 ], bottomright[ 1 ], ystep )
+            # Set the axis extremes.
+            left, top  = lefttop[ 0 : 2 ]
+            right, bot = rightbot[ 0 : 2 ]
+
+        # Create the axes.
+        self._x = Axis( left, right, xstep )
+        self._y = Axis( top, bot, ystep )
 
 
     #=========================================================================
@@ -219,44 +232,48 @@ class Plane( object ):
 
         aspect         The dx/dy aspect ratio (can be negative)
         bottom|b       The bottom vertical extreme
-        bottomright|br The (x,y) coordinate of the bottom-right extreme
+        delta|d        The (dx,dy) difference between extremes
         deltax|dx      The difference between horizontal extremes
         deltay|dy      The difference between veritcal extremes
         dimensions|dim The (w,h) dimensions of the plane
         height|h       The number of coordinates on the vertical axis
         left|l         The left horizontal extreme
+        lefttop|lt     The (x,y) coordinate of the top-left extreme
         right|r        The right horizontal extreme
+        rightbot|rb    The (x,y) coordinate of the bottom-right extreme
         top|t          The top veritical extreme
-        topleft|tl     The (x,y) coordinate of the top-left extreme
         width|w        The number of coordinates on the horizontal axis
 
         @param name The name of the attribute to retrieve
         @return     The value of the requested attribute
+        @throws     AttributeError if the attribute is invalid
         """
         if name == 'aspect':
             return self._x.delta() / self._y.delta()
-        elif ( name == 'dimensions' ) or ( name == 'dim' ):
-            return self._dmake( len( self._x ), len( self._y ) )
-        elif ( name == 'top' ) or ( name == 't' ):
-            return self._y.start
-        elif ( name == 'left' ) or ( name == 'l' ):
-            return self._x.start
         elif ( name == 'bottom' ) or ( name == 'b' ):
             return self._y.stop
-        elif ( name == 'right' ) or ( name == 'r' ):
-            return self._x.stop
-        elif ( name == 'topleft' ) or ( name == 'tl' ):
-            return self._cmake( self._x.start, self._y.start )
-        elif ( name == 'bottomright' ) or ( name == 'br' ):
-            return self._cmake( self._x.stop, self._y.stop )
-        elif ( name == 'width') or ( name == 'w' ):
-            return len( self._x )
-        elif ( name == 'height' ) or ( name == 'h' ):
-            return len( self._y )
+        elif ( name == 'delta' ) or ( name == 'd' ):
+            return self._dmake( self._x.delta(), self._y.delta() )
         elif ( name == 'deltax' ) or ( name == 'dx' ):
             return self._x.delta()
         elif ( name == 'deltay' ) or ( name == 'dy' ):
             return self._y.delta()
+        elif ( name == 'dimensions' ) or ( name == 'dim' ):
+            return self._dmake( len( self._x ), len( self._y ) )
+        elif ( name == 'height' ) or ( name == 'h' ):
+            return len( self._y )
+        elif ( name == 'left' ) or ( name == 'l' ):
+            return self._x.start
+        elif ( name == 'lefttop' ) or ( name == 'lt' ):
+            return self._cmake( self._x.start, self._y.start )
+        elif ( name == 'right' ) or ( name == 'r' ):
+            return self._x.stop
+        elif ( name == 'rightbot' ) or ( name == 'rb' ):
+            return self._cmake( self._x.stop, self._y.stop )
+        elif ( name == 'top' ) or ( name == 't' ):
+            return self._y.start
+        elif ( name == 'width') or ( name == 'w' ):
+            return len( self._x )
         raise AttributeError( 'Unknown attribute: {}'.format( name ) )
 
 
