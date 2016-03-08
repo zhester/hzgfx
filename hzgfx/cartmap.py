@@ -391,21 +391,31 @@ class Map( object ):
 
 
     #=========================================================================
-    def translate( self, point = None ):
+    def translate( self, point = None, nearest = False ):
         """
         Translates a source point into a target point.
 
-        @param point A Point or two-tuple of the point to translate
-        @return      A Point in the target plane that corresponds to the same
-                     position in the source plane
+        @param point   A Point or two-tuple of the point to translate
+        @param nearest Set to true to map outputs to the closest integer.
+                       Set a two-tuple of (bool,bool) to indicate integer
+                       outputs per axis.
+        @return        A Point in the target plane that corresponds to the
+                       same position in the source plane
         """
         if point is None:
             point = Point( 0.0, 0.0 )
         elif isinstance( point, Point ) == False:
             point = Point( *point )
-        return Point(
-            ( self.horizontal.m * point.x + self.horizontal.b ),
-            ( self.vertical.m   * point.y + self.vertical.b   )
-        )
+        if isinstance( nearest, ( tuple, list ) ):
+            nearx, neary = nearest[ 0 : 2 ]
+        else:
+            nearx, neary = nearest, nearest
+        target_x = self.horizontal.m * point.x + self.horizontal.b
+        target_y = self.vertical.m   * point.y + self.vertical.b
+        if nearx:
+            target_x = int( round( target_x ) )
+        if neary:
+            target_y = int( round( target_y ) )
+        return Point( target_x, target_y )
 
 

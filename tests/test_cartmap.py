@@ -335,6 +335,12 @@ class TestMap( unittest.TestCase ):
         self.assertTupleEqual( exp_origin, pmap.translate() )
         exp_point = hzgfx.cartmap.Point( 2.5, 12.5 )
         self.assertTupleEqual( exp_point, pmap.translate( ( 10, 25 ) ) )
+        exp_point = hzgfx.cartmap.Point( 3, 13 )
+        point = pmap.translate( ( 10, 25 ), True )
+        self.assertTupleEqual( exp_point, point )
+        exp_point = hzgfx.cartmap.Point( 2.5, 13 )
+        point = pmap.translate( ( 10, 25 ), ( False, True ) )
+        self.assertTupleEqual( exp_point, point )
 
         ### ZIH - test horizontally-clipped targets
         ### ZIH - test scaled mapping with map_extremes
