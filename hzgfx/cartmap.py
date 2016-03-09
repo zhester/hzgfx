@@ -155,6 +155,80 @@ class Axis( object ):
 
 
 #=============================================================================
+class LinearMap( object ):
+    """
+    Models a linear mapping between two axes.
+    """
+
+
+    #=========================================================================
+    def __init__( self, a, b ):
+        """
+        Initializes an LinearMap object.
+
+        ### ZIH - also accept an output type to allow mapping to automatically
+                  convert output to integers (when possibly indexing arrays on
+                  axes after point translation)
+
+        @param a The first-order linear coefficent (slope)
+        @param b The constant linear coefficient (y-intercept)
+        """
+        self.a = a
+        self.b = b
+
+
+    #=========================================================================
+    @staticmethod
+    def map_clipped( source, target, target_limit ):
+        """
+        Factory method to create a new LinearMap between two Axis objects.
+        Only a subsection of the target axis is mapped to the entirety of the
+        source axis.
+        This will result in a "clipping" effect when mapping axes of different
+        lengths.
+
+        @param source       The intended source Axis of the mapping
+        @param target       The intended target Axis of the mapping
+        @param target_limit ### ZIH
+        @return             A LinearMap object capable of translating source
+                            points to target points
+        """
+        ### ZIH
+        pass
+
+
+    #=========================================================================
+    @staticmethod
+    def map_scaled( source, target ):
+        """
+        Factory method to create a new LinearMap between two Axis objects.
+        All points between axes are mapped such that the limits of each match.
+        This will result in a "scaling" effect when mapping axes of different
+        lengths.
+
+        @param source The intended source Axis of the mapping
+        @param target The intended target Axis of the mapping
+        @return       A LinearMap object capable of translating source points
+                      to target points
+        """
+        a = target.delta() / float( source.delta() )
+        b = target.start - a * source.start
+        return LinearMap( a, b )
+
+
+    #=========================================================================
+    def translate( self, p ):
+        """
+        Translates a point from an independent point on a source axis to a
+        dependent point on a target axis.
+
+        @param p The independent (input) coordinate
+        @return  The dependent (output) coordinate
+        """
+        return self.a * p + self.b
+
+
+#=============================================================================
 class Plane( object ):
     """
     Models a Cartesian coordinate plane.
