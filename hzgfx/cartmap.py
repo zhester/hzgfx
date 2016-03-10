@@ -1,4 +1,5 @@
 #=============================================================================
+# coding=utf-8
 #
 # Cartesian Coordinate Mapping
 #
@@ -17,24 +18,45 @@
 #
 # ### Scaling
 #
-# Scaling is used when the full range of coordinates must match between the
-# input and the output.  Thus, the ranges are scaled such that their extremes
-# are considered equal positions in the output.
+# Scaling is used when the all values from a source interval must be able to
+# reach all values in a target interval.  The extremes of the source interval
+# map directly to the extremes of the target interval.
+#
+#     SOURCE = TARGET
+#
+#     |---------S---------|
+#      \                 /
+#       \               /
+#       |-------T-------|
 #
 # ### Clipping
 #
-# Clipping means that all values of a source continuum are mapped to a subset
-# of the values of a target continuum.  Thus, there are values in the target
-# continuum that can not be reached through the map, and are considered
-# "clipped" from the output.
+# Clipping is used when a subset of the source interval must be mapped to all
+# values in a target interval.  Values at one or both extremes of the source
+# interval do not map to values in the target interval.  These are considered
+# "clipped" (missing) from the output.
+#
+#     SOURCE ⊂ TARGET
+#
+#     |----+----S----+----|
+#         /           \
+#        /             \
+#       |-------T-------|
 #
 # ### Filling
 #
-# Filling provides the opposite functionality of clipping.  When filling, a
-# subset of values of a source continuum are used to reach all values of a
-# target continuum.  In this case, there are inputs that map to nothing, and
-# are considered "filled" when used for output.  In an image, this typically
-# results in a "letterbox" effect.
+# Filling provides the opposite functionality of clipping.  Filling is used
+# when all values in a source interval must be mapped to a subset of the
+# values in a target interval.  Values at one or both extremes of the target
+# interval do not map to values in the source interval.  These are considered
+# "filled" (possibly with a default value) in the output.
+#
+#     SOURCE ⊃ TARGET
+#
+#       |-------S-------|
+#        \             /
+#         \           /
+#     |----+----T----+----|
 #
 #=============================================================================
 
@@ -79,21 +101,21 @@ class LinearMap( object ):
 
 
     #=========================================================================
-    def __init__( self, source, target, fill = None, clip = None ):
+    def __init__( self, source, target, clip = None, fill = None ):
         """
         Initializes a LinearMap object.
 
         @param source The source Interval of the mapping
         @param target The target Interval of the mapping
-        @param fill   Specify filling limits in the source
-        @param clip   Specify clipping limits in the target
+        @param clip   Specify clipping limits in the source
+        @param fill   Specify filling limits in the target
         """
 
         # Check the intervals to make sure mapping would work.
         if source.delta == 0:
-            raise ValueError( 'Source intervals must have a non-zero domain.' )
+            raise ValueError( 'Source interval must have non-zero domain.' )
         if target.delta == 0:
-            raise ValueError( 'Target intervals must have a non-zero domain.' )
+            raise ValueError( 'Target interval must have non-zero domain.' )
 
         # Save intervals to map state.
         self.source = source
@@ -104,9 +126,13 @@ class LinearMap( object ):
         b = target.start - a * source.start
         self._scale = Line( a, b )
 
-        # Set the fill and clip boundaries.
-        self.set_fill( fill )
+        # Initialize the clip boundaries.
+        self._clip = None
         self.set_clip( clip )
+
+        # Initialize the fill boundaries.
+        self._fill = None
+        self.set_fill( fill )
 
 
     #=========================================================================
@@ -122,17 +148,15 @@ class LinearMap( object ):
 
     #=========================================================================
     @classmethod
-    def create( cls, source = None, target = None, fill = None, clip = None ):
+    def create( cls, source = None, target = None, clip = None, fill = None ):
         """
         Factory method to create linear maps using a wider variety of initial
         information.
 
-        ### ZIH
-
-        @param source
-        @param target
-        @param fill
-        @param clip
+        @param source The source Interval or limit(s) of the mapping
+        @param target The target Interval or limit(s) of the mapping
+        @param clip   Specify clipping limits in the source
+        @param fill   Specify filling limits in the target
         """
 
         # Check for the need to create interval instances.
@@ -146,31 +170,88 @@ class LinearMap( object ):
 
 
     #=========================================================================
-    def set_clip( self, lower, upper = None ):
+    def set_clip( self, lower = None, upper = None ):
         """
-        Sets the target interval clipping boundaries.
+        Sets or clears the clip mapping between intervals.
 
-        ### ZIH
+        If both arguments are not given or None, the clip mapping is removed
+        from the map.
 
-        @param lower
-        @param upper
+        @param lower Lower limit of valid values in the source interval
+        @param upper Upper limit of valid values in the source interval
+        @throws      ValueError if the clip region has no size
         """
-        ### ZIH
-        pass
+
+        # Check for disabled clipping.
+        if ( lower is None ) and ( upper is None ):
+            self._clip = None
+            return
+
+        # Sequence-specified boundaries.
+        if isinstance( lower, ( tuple, list ) ):
+            lower = source.start if len( lower ) <= 0 else lower[ 0 ]
+            upper = source.stop  if len( lower ) <= 1 else lower[ 1 ]
+
+        # Non-sequence boundaries.
+        else:
+            if lower is None:
+                lower = source.start
+            if upper is None:
+                upper = source.stop
+
+        # Compute and check boundary region.
+        delta = upper - lower
+        if delta == 0:
+            raise ValueError(
+                'Invalid clipping boundaries: {}, {}'.format( lower, upper )
+            )
+
+        # Compute clipping map coefficients.
+        a = self.target.delta / float( delta )
+        b = self.target.start - a * lower
+
+        # Set the clip mapping.
+        self._clip = Line( a, b )
 
 
     #=========================================================================
-    def set_fill( self, lower, upper = None ):
+    def set_fill( self, lower = None, upper = None ):
         """
-        Sets the source interval filling boundaries.
+        Sets or clears the fill mapping between intervals.
 
-        ### ZIH
+        If both arguments are not given or None, the fill mapping is removed
+        from the map.
 
-        @param lower
-        @param upper
+        @param lower Lower limit of valid values in the target interval
+        @param upper Upper limit of valid values in the target interval
         """
-        ### ZIH
-        pass
+
+        # Check for disabled filling.
+        if ( lower is None ) and ( upper is None ):
+            self._fill = None
+            return
+
+        # Sequence-specified boundaries.
+        if isinstance( lower, ( tuple, list ) ):
+            lower = target.start if len( lower ) <= 0 else lower[ 0 ]
+            upper = target.stop  if len( lower ) <= 1 else lower[ 1 ]
+
+        # Non-sequence boundaries.
+        else:
+            if lower is None:
+                lower = target.start
+            if upper is None:
+                upper = target.stop
+
+        # Compute boundary region.
+        delta = upper - lower
+
+        # Compute filling map coefficients.
+        a = delta / float( self.source.delta )
+        b = lower - a * self.source.start
+
+        # Set the fill mapping.
+        self._fill = Line( a, b )
 
 
     #=========================================================================
@@ -182,6 +263,7 @@ class LinearMap( object ):
         @param point A point in the source interval
         @return      The corresponding point in the target interval
         """
+        ### ZIH - check self._clip and self._fill
         return self._scale.a * point + self._scale.b
 
 
