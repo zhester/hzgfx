@@ -154,7 +154,7 @@ class TestPlane( unittest.TestCase ):
             ( 30, 40 ),
             ( 2, 4 )
         )
-        expected = 'X := [10:30:2]; Y := [20:40:4]'
+        expected = 'X := [10,30);2 / Y := [20,40);4'
         self.assertEqual( expected, str( plane ) )
 
 

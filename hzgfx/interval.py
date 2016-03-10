@@ -118,6 +118,8 @@ class Interval( object ):
         Compute Attributes
 
         delta The difference between the upper and lower limits
+        neg   True if the interval trends negatively
+        pos   True if the interval trends positively
 
         @param name The name of the attribute to retrieve
         @return     The value of the requested attribute
@@ -127,6 +129,10 @@ class Interval( object ):
         # Known attributes
         if name == 'delta':
             return self.stop - self.start
+        elif name == 'neg':
+            return self.start > self.stop
+        elif name == 'pos':
+            return self.start < self.stop
 
         # Unknown attribute
         raise AttributeError(
@@ -212,7 +218,39 @@ class Interval( object ):
 
         @return A string representation of the interval
         """
-        return '[{0.start}:{0.stop}:{0.step}]'.format( self )
+        return '[{0.start},{0.stop});{0.step}'.format( self )
+
+
+    #=========================================================================
+    def getpos( self, value ):
+        """
+        Performs a reverse lookup to retrieve a position given a value in the
+        interval.
+
+        @param value The value within the interval
+        @return      The offset into the interval's discrete positions
+        @throws      ValueError if the value is outside the interval
+        """
+
+        # If the interval trends negatively, make sure the value is less than
+        # start and more than stop
+        if self.neg and ( ( value > self.start ) or ( value < self.stop ) ):
+            raise ValueError(
+                '{} is outside the interval {}.'.format( value, self )
+            )
+
+        # If the interval trends positively, make sure the value is more than
+        # start and less than stop
+        elif ( value < self.start ) or ( value > self.stop ):
+            raise ValueError(
+                '{} is outside ++ the interval {}.'.format( value, self )
+            )
+
+        # Compute the closest position for this value.
+        ### ZIH - incorrect calculation
+        return int(
+            round( ( value - self.start ) / float( len( self ) ) )
+        )
 
 
 #=============================================================================

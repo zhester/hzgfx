@@ -22,7 +22,7 @@
 # reach all values in a target interval.  The extremes of the source interval
 # map directly to the extremes of the target interval.
 #
-#     SOURCE = TARGET
+#     SOURCE := TARGET
 #
 #     |---------S---------|
 #      \                 /
@@ -36,7 +36,7 @@
 # interval do not map to values in the target interval.  These are considered
 # "clipped" (missing) from the output.
 #
-#     SOURCE ⊂ TARGET
+#     SOURCE :⊂ TARGET
 #
 #     |----+----S----+----|
 #         /           \
@@ -51,7 +51,7 @@
 # interval do not map to values in the source interval.  These are considered
 # "filled" (possibly with a default value) in the output.
 #
-#     SOURCE ⊃ TARGET
+#     SOURCE :⊃ TARGET
 #
 #       |-------S-------|
 #        \             /
@@ -397,7 +397,7 @@ class Plane( object ):
 
         @return A string representation of the Cartesian plane
         """
-        return 'X := {}; Y := {}'.format( self._x, self._y )
+        return 'X := {} / Y := {}'.format( self._x, self._y )
 
 
 #=============================================================================

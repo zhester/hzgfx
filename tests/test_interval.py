@@ -257,9 +257,29 @@ class TestInterval( unittest.TestCase ):
         Tests the __str__ method.
         """
         interval = hzgfx.interval.Interval( 0, 8, 2 )
-        self.assertEqual( '[0:8:2]', str( interval ) )
+        self.assertEqual( '[0,8);2', str( interval ) )
         interval = hzgfx.interval.Interval( -3.1, 8.3, 0.5 )
-        self.assertEqual( '[-3.1:8.3:0.5]', str( interval ) )
+        self.assertEqual( '[-3.1,8.3);0.5', str( interval ) )
+
+
+    #=========================================================================
+    def test_getpos( self ):
+        """
+        Tests the getpos method.
+        """
+        off = """
+        interval = hzgfx.interval.interval( 0, 10, 1 )
+        self.assertEqual( 0, interval.getpos( 0 ) )
+        self.assertEqual( 1, interval.getpos( 1 ) )
+        self.assertEqual( 8, interval.getpos( 8 ) )
+        self.assertEqual( 9, interval.getpos( 9 ) )
+        with self.assertRaises( ValueError ):
+            value = interval.getpos( -1 )
+        with self.assertRaises( ValueError ):
+            value = interval.getpos( 10 )
+
+        interval = hzgfx.interval.interval( -1.0, 1.0, 0.2 )
+        """
 
 
 #=============================================================================
