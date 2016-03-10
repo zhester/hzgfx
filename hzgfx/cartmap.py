@@ -50,6 +50,8 @@ Cartesian Coordinate Mapping
 import collections
 import math
 
+import interval
+
 
 __version__ = '0.0.0'
 
@@ -70,174 +72,6 @@ Line      = collections.namedtuple( 'Line',      ( 'a', 'b' ) )
 
 
 #=============================================================================
-class Interval( object ):
-    """
-    Models a numeric interval within a coordinate axis.
-
-    This is modeled similarly to one of Python's numeric ranges.  The
-    lower-limit of the interval is denoted as the "start" of the interval, and
-    the upper-limit of the interval is denoted as the "stop" of the interval.
-
-    The interval is specified the same way as a Python range where the
-    included endpoints on the interval are [start,stop).
-    """
-
-
-    #=========================================================================
-    def __init__( self, start, stop = None, step = 1 ):
-        """
-        Initializes an Interval object.
-
-        @param start The lower-limit of the interval
-                     If `stop` is not given, this is used as the `stop` value
-                     of the interval, and assumes the `start` is 0.
-        @param stop  One more than the upper-limit of the interval
-        @param step  The distance between adjacent points in the interval
-                     If not given, the default is 1.
-        """
-
-        # Look for size-specified intervals.
-        if stop is None:
-            self.start = type( start )( 0 )
-            self.stop  = start
-
-        # The interval is given as limits.
-        else:
-            self.start = start
-            self.stop  = stop
-
-        # Set the step size.
-        self.step = step
-
-
-    #=========================================================================
-    def __getattr__( self, name ):
-        """
-        Provides access to computed attributes.
-
-        Compute Attributes
-
-        delta The difference between the upper and lower limits
-
-        @param name The name of the attribute to retrieve
-        @return     The value of the requested attribute
-        @throws     AttributeError for invalid attributes
-        """
-
-        # Known attributes
-        if name == 'delta':
-            return self.stop - self.start
-
-        # Unknown attribute
-        raise AttributeError(
-            "{} object has no attribute '{}'".format(
-                self.__class__.__name__,
-                name
-            )
-        )
-
-
-    #=========================================================================
-    def __getitem__( self, offset ):
-        """
-        Maps integer offsets into the interval to interval values.
-
-        The difference between this and normal sequences or ranges is that
-        it does not consider any offsets as invalid.  Extrapolation and
-        interpolation works.
-
-        @param offset The integer offset into the interval
-                      The integer-specified slice within the interval
-                      The float-specified ratio into the interval
-        @return       The interval value at the offset
-        @throws       KeyError if the offset can not be mapped
-        """
-
-        # Number of positions in interval.
-        length = len( self )
-
-        # Slice notation.
-        if isinstance( offset, slice ):
-            ### ZIH
-            raise NotImplementedError()
-
-        # Ratio of interval.
-        elif type( offset ) is float:
-
-            # Translate normal value [0.0,1.0) to offset.
-            offset = int( offset * length )
-
-        # Negative offset support.
-        if offset < 0:
-
-            # Normalize negative offset.
-            offset += length
-
-        # Interval value at this offset
-        return self.start + self.step * offset
-
-
-    #=========================================================================
-    def __iter__( self ):
-        """
-        Provides an iterator interface to the interval.
-
-        @return An iterable object for all positions on the interval
-        """
-
-        # Iterate through the normal range of the interval.
-        for offset in range( len( self ) ):
-
-            # Yield the value at each position.
-            yield self.start + self.step * offset
-
-
-    #=========================================================================
-    def __len__( self ):
-        """
-        Produces the length of the interval as the number of steps between the
-        lower and upper limits.
-
-        @return The number of discrete positions in the interval
-        """
-
-        # Floor and int to avoid over-stepping the last position.
-        return int( abs( self.delta / self.step ) )
-
-
-    #=========================================================================
-    def __str__( self ):
-        """
-        Produces a string representation of the interval.
-
-        @return A string representation of the interval
-        """
-        return '[{0.start}:{0.stop}:{0.step}]'.format( self )
-
-
-#=============================================================================
-class RealInterval( Interval ):
-    """
-    Extends the Interval class to cleanly handle intervals of real numbers.
-
-    Real intervals break from the convention of the "stop" value indicating
-    one more than the end of the interval.  Instead, "stop" is included in the
-    interval as the true upper limit.
-    """
-
-
-    #=========================================================================
-    def __len__( self ):
-        """
-        Produces the length of the interval as the number of steps between the
-        lower and upper limits.
-        """
-
-        # Include the limits of the interval.
-        return int( abs( ( self.delta + self.step ) / self.step ) )
-
-
-#=============================================================================
 class LinearMap( object ):
     """
     Models a linear mapping between two intervals.
@@ -254,12 +88,25 @@ class LinearMap( object ):
         @param fill   Specify filling limits in the source
         @param clip   Specify clipping limits in the target
         """
+
+        # Check the intervals to make sure mapping would work.
+        if source.delta == 0:
+            raise ValueError( 'Source intervals must have a non-zero domain.' )
+        if target.delta == 0:
+            raise ValueError( 'Target intervals must have a non-zero domain.' )
+
+        # Save intervals to map state.
         self.source = source
         self.target = target
+
+        # Compute the default scaling coefficients.
         a = target.delta / float( source.delta )
         b = target.start - a * source.start
         self._scale = Line( a, b )
-        ### ZIH - implement fill and clip
+
+        # Set the fill and clip boundaries.
+        self.set_fill( fill )
+        self.set_clip( clip )
 
 
     #=========================================================================
@@ -271,6 +118,59 @@ class LinearMap( object ):
         @return      The corresponding point in the target interval
         """
         return self.translate( point )
+
+
+    #=========================================================================
+    @classmethod
+    def create( cls, source = None, target = None, fill = None, clip = None ):
+        """
+        Factory method to create linear maps using a wider variety of initial
+        information.
+
+        ### ZIH
+
+        @param source
+        @param target
+        @param fill
+        @param clip
+        """
+
+        # Check for the need to create interval instances.
+        if isinstance( source, interval.Interval ) == False:
+            source = interval.interval( source )
+        if isinstance( target, interval.Interval ) == False:
+            target = interval.interval( target )
+
+        # Create the object.
+        return cls( source, target, fill, clip )
+
+
+    #=========================================================================
+    def set_clip( self, lower, upper = None ):
+        """
+        Sets the target interval clipping boundaries.
+
+        ### ZIH
+
+        @param lower
+        @param upper
+        """
+        ### ZIH
+        pass
+
+
+    #=========================================================================
+    def set_fill( self, lower, upper = None ):
+        """
+        Sets the source interval filling boundaries.
+
+        ### ZIH
+
+        @param lower
+        @param upper
+        """
+        ### ZIH
+        pass
 
 
     #=========================================================================
@@ -352,8 +252,8 @@ class Plane( object ):
             right, bot = rightbot[ 0 : 2 ]
 
         # Create the axes.
-        self._x = Interval( left, right, xstep )
-        self._y = Interval( top, bot, ystep )
+        self._x = interval.Interval( left, right, xstep )
+        self._y = interval.Interval( top, bot, ystep )
 
 
     #=========================================================================
