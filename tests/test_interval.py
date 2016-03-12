@@ -154,14 +154,45 @@ class TestInterval( unittest.TestCase ):
 
 
     #=========================================================================
+    def test_contains( self ):
+        """
+        Tests the __contains__ method.
+        """
+
+        interval = hzgfx.interval.Interval( 3 )
+        self.assertNotIn( -1, interval )
+        self.assertIn( 0, interval )
+        self.assertIn( 1, interval )
+        self.assertIn( 2, interval )
+        self.assertNotIn( 3, interval )
+
+        interval = hzgfx.interval.Interval( 3.0 )
+        self.assertNotIn( -0.001, interval )
+        self.assertIn( 0.0, interval )
+        self.assertIn( 0.001, interval )
+        self.assertIn( 2.999, interval )
+        self.assertNotIn( 3.0, interval )
+
+
+    #=========================================================================
     def test_getattr( self ):
         """
         Tests the __getattr__ method.
         """
+
         interval = hzgfx.interval.Interval( 0, 8, 2 )
         self.assertEqual( 8, interval.delta )
+        self.assertEqual( True, interval.pos )
+        self.assertEqual( False, interval.neg )
+
         interval = hzgfx.interval.Interval( -3.1, 8.3, 0.5 )
         self.assertAlmostEqual( 11.4, interval.delta )
+
+        interval = hzgfx.interval.Interval( 5.0, -5.0, 0.5 )
+        self.assertAlmostEqual( -10.0, interval.delta )
+        self.assertEqual( False, interval.pos )
+        self.assertEqual( True, interval.neg )
+
         with self.assertRaises( AttributeError ):
             dummy = interval.fakeyfaker
 
@@ -221,6 +252,12 @@ class TestInterval( unittest.TestCase ):
         actual = []
         for value in interval:
             actual.append( value )
+        self.assertListEqual( expected, actual )
+
+        # Inverted integer intervals.
+        interval = hzgfx.interval.Interval( 5, -5 )
+        expected = [ 5, 4, 3, 2, 1, 0, -1, -2, -3, -4 ]
+        actual = list( interval )
         self.assertListEqual( expected, actual )
 
 

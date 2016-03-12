@@ -84,6 +84,11 @@ class Interval( object ):
 
 
     #=========================================================================
+    # The format used to represent objects as strings.
+    _strfmt = '[{0.start},{0.stop});{0.step}'
+
+
+    #=========================================================================
     def __init__( self, start, stop = None, step = 1 ):
         """
         Initializes an Interval object.
@@ -170,16 +175,14 @@ class Interval( object ):
     #=========================================================================
     def __getitem__( self, offset ):
         """
-        Maps integer offsets into the interval to interval values.
+        Maps integer offsets into the interval values.
 
         The difference between this and normal sequences or ranges is that
-        it does not consider any offsets as invalid.  Extrapolation and
-        interpolation works.
+        it does not consider any offsets as invalid.  Extrapolation works.
 
         @param offset The integer offset into the interval
                       The integer-specified slice within the interval
-                      The float-specified ratio into the interval
-        @return       The interval value at the offset
+        @return       The interval value at the given offset
         @throws       KeyError if the offset can not be mapped
         """
 
@@ -191,10 +194,10 @@ class Interval( object ):
             ### ZIH
             raise NotImplementedError()
 
-        # Ratio of interval.
-        elif type( offset ) is float:
+        # See if an offset was given as a number from 0.0 to 1.0.
+        if type( offset ) is float:
 
-            # Translate normal value [0.0,1.0) to offset.
+            # Adjust for requesting a continuous position.
             offset = int( offset * length )
 
         # Negative offset support.
@@ -202,6 +205,10 @@ class Interval( object ):
 
             # Normalize negative offset.
             offset += length
+
+        # Negative intervals work in reverse.
+        if self.neg == True:
+            return self.stop + self.step * offset
 
         # Interval value at this offset
         return self.start + self.step * offset
@@ -215,11 +222,23 @@ class Interval( object ):
         @return An iterable object for all positions on the interval
         """
 
-        # Iterate through the normal range of the interval.
-        for offset in range( len( self ) ):
+        # Negative interval iteration.
+        if self.neg == True:
 
-            # Yield the value at each position.
-            yield self.start + self.step * offset
+            # Iterate through the normal range of the interval.
+            for offset in range( len( self ), 0, -1 ):
+
+                # Yield the value at each position.
+                yield self.stop + self.step * offset
+
+        # Positive interval iteration.
+        else:
+
+            # Iterate through the normal range of the interval.
+            for offset in range( len( self ) ):
+
+                # Yield the value at each position.
+                yield self.start + self.step * offset
 
 
     #=========================================================================
@@ -242,7 +261,7 @@ class Interval( object ):
 
         @return A string representation of the interval
         """
-        return '[{0.start},{0.stop});{0.step}'.format( self )
+        return self._strfmt.format( self )
 
 
     #=========================================================================
@@ -278,6 +297,11 @@ class RealInterval( Interval ):
 
 
     #=========================================================================
+    # The format used to represent objects as strings.
+    _strfmt = '[{0.start},{0.stop}];{0.step}'
+
+
+    #=========================================================================
     def __len__( self ):
         """
         Produces the length of the interval as the number of steps between the
@@ -310,15 +334,4 @@ class RealInterval( Interval ):
 
         # Value is outside the interval.
         return False
-
-
-    #=========================================================================
-    def __str__( self ):
-        """
-        Produces a string representation of the interval.
-
-        @return A string representation of the interval
-        """
-        return '[{0.start},{0.stop}];{0.step}'.format( self )
-
 
