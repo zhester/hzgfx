@@ -267,7 +267,7 @@ class TestInterval( unittest.TestCase ):
         """
         Tests the getpos method.
         """
-        off = """
+
         interval = hzgfx.interval.interval( 0, 10, 1 )
         self.assertEqual( 0, interval.getpos( 0 ) )
         self.assertEqual( 1, interval.getpos( 1 ) )
@@ -279,7 +279,14 @@ class TestInterval( unittest.TestCase ):
             value = interval.getpos( 10 )
 
         interval = hzgfx.interval.interval( -1.0, 1.0, 0.2 )
-        """
+        self.assertEqual( 0, interval.getpos( -1.0 ) )
+        self.assertEqual( 1, interval.getpos( -0.8 ) )
+        self.assertEqual( 9, interval.getpos( 0.8 ) )
+        self.assertEqual( 10, interval.getpos( 1.0 ) )
+        with self.assertRaises( ValueError ):
+            value = interval.getpos( -1.001 )
+        with self.assertRaises( ValueError ):
+            value = interval.getpos( 1.001 )
 
 
 #=============================================================================

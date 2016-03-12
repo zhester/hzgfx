@@ -111,6 +111,30 @@ class Interval( object ):
 
 
     #=========================================================================
+    def __contains__( self, value ):
+        """
+        Supports testing a value to see if it is within the limits of the
+        interval.
+
+        @param value The value to test
+        @return      True if the value is within the interval
+        """
+
+        # If the interval trends negatively, make sure the value is less than
+        # start and more than stop.
+        if self.neg and ( ( value <= self.start ) and ( value > self.stop ) ):
+            return True
+
+        # If the interval trends positively, make sure the value is more than
+        # start and less than stop.
+        elif ( value >= self.start ) and ( value < self.stop ):
+            return True
+
+        # Value is outside the interval.
+        return False
+
+
+    #=========================================================================
     def __getattr__( self, name ):
         """
         Provides access to computed attributes.
@@ -232,25 +256,14 @@ class Interval( object ):
         @throws      ValueError if the value is outside the interval
         """
 
-        # If the interval trends negatively, make sure the value is less than
-        # start and more than stop
-        if self.neg and ( ( value > self.start ) or ( value < self.stop ) ):
+        # Check to make sure the value can be mapped to a position.
+        if value not in self:
             raise ValueError(
                 '{} is outside the interval {}.'.format( value, self )
             )
 
-        # If the interval trends positively, make sure the value is more than
-        # start and less than stop
-        elif ( value < self.start ) or ( value > self.stop ):
-            raise ValueError(
-                '{} is outside ++ the interval {}.'.format( value, self )
-            )
-
         # Compute the closest position for this value.
-        ### ZIH - incorrect calculation
-        return int(
-            round( ( value - self.start ) / float( len( self ) ) )
-        )
+        return int( round( ( value - self.start ) / self.step ) )
 
 
 #=============================================================================
@@ -273,5 +286,39 @@ class RealInterval( Interval ):
 
         # Include the limits of the interval.
         return int( abs( ( self.delta + self.step ) / self.step ) )
+
+
+    #=========================================================================
+    def __contains__( self, value ):
+        """
+        Supports testing a value to see if it is within the limits of the
+        interval.
+
+        @param value The value to test
+        @return      True if the value is within the interval
+        """
+
+        # If the interval trends negatively, make sure the value is less than
+        # start and more than stop.
+        if self.neg and ( ( value <= self.start ) and ( value >= self.stop ) ):
+            return True
+
+        # If the interval trends positively, make sure the value is more than
+        # start and less than stop.
+        elif ( value >= self.start ) and ( value <= self.stop ):
+            return True
+
+        # Value is outside the interval.
+        return False
+
+
+    #=========================================================================
+    def __str__( self ):
+        """
+        Produces a string representation of the interval.
+
+        @return A string representation of the interval
+        """
+        return '[{0.start},{0.stop}];{0.step}'.format( self )
 
 
