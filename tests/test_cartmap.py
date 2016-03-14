@@ -23,6 +23,20 @@ class TestLinearMap( unittest.TestCase ):
     Tests the LinearMap class.
     """
 
+    #=========================================================================
+    def setUp( self ):
+        """
+        Performs common test setup.
+        """
+        self.i010  = hzgfx.interval.Interval( 0, 10 )
+        self.i100  = hzgfx.interval.Interval( 10, 0 )
+        self.r01   = hzgfx.interval.RealInterval( 0.0, 1.0, 0.1 )
+        self.r10   = hzgfx.interval.RealInterval( 1.0, 0.0, 0.1 )
+        self.lm_i1 = hzgfx.cartmap.LinearMap( self.i010, self.i010 )
+        self.lm_i2 = hzgfx.cartmap.LinearMap( self.i010, self.i100 )
+        self.lm_r1 = hzgfx.cartmap.LinearMap( self.r01, self.r01 )
+        self.lm_r2 = hzgfx.cartmap.LinearMap( self.r01, self.r10 )
+
 
     #=========================================================================
     def test_init( self ):
@@ -52,10 +66,117 @@ class TestLinearMap( unittest.TestCase ):
         self.assertIsInstance( lmap.target, hzgfx.interval.RealInterval )
 
         # Check a few internal intializations.
-        ### ZIH
-        # lmap._map
-        # lmap._clip
-        # lmap._fill
+        self.assertIsInstance( self.lm_i1._map, hzgfx.cartmap.Line )
+        self.assertEqual( 1.0, self.lm_i1._map.a )
+        self.assertEqual( 0.0, self.lm_i1._map.b )
+        self.assertIsNone( self.lm_i1._clip )
+        self.assertIsNone( self.lm_i1._fill )
+
+
+    #=========================================================================
+    def test_clipped( self ):
+        """
+        Tests clipped mapping.
+        """
+
+        # Simple direct mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0, 8 ), ( 0, 8 ) )
+
+        # Ensure no clipping is enabled.
+        self.assertIsNone( lmap._clip )
+        self.assertEqual( 0, lmap[ 0 ] )
+        self.assertEqual( 7, lmap[ 7 ] )
+
+        # Enable clipping from target interval.
+        # This clips half the domain (1/4 on each end).
+        # This results in an effective output step of 0.5.
+        lmap.set_clip( ( 2, 6 ) )
+
+        # Internal state test.
+        self.assertIsNotNone( lmap._clip )
+        self.assertIsInstance( lmap._clip, hzgfx.interval.Interval )
+
+        # Clipping test.
+        self.assertEqual( 2.0, lmap[ 0 ] )
+        self.assertEqual( 2.5, lmap[ 1 ] )
+        self.assertEqual( 3.0, lmap[ 2 ] )
+        self.assertEqual( 3.5, lmap[ 3 ] )
+        self.assertEqual( 4.0, lmap[ 4 ] )
+        self.assertEqual( 4.5, lmap[ 5 ] )
+        self.assertEqual( 5.0, lmap[ 6 ] )
+        self.assertEqual( 5.5, lmap[ 7 ] )
+
+
+    #=========================================================================
+    def test_filled( self ):
+        """
+        Tests filled mapping.
+        """
+
+        # Simple direct mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0, 8 ), ( 0, 8 ) )
+
+        # Ensure no filling is enabled.
+        self.assertIsNone( lmap._fill )
+        self.assertEqual( 0, lmap[ 0 ] )
+        self.assertEqual( 7, lmap[ 7 ] )
+
+        # Enable filling from target interval.
+        # This fills half the domain (1/4 on each end).
+        # This results in an effective output step of 2.
+        lmap.set_fill( ( 2, 6 ) )
+
+        # Internal state test.
+        self.assertIsNotNone( lmap._fill )
+        self.assertIsInstance( lmap._fill, hzgfx.interval.Interval )
+
+        # Filling test.
+        self.assertEqual( -4.0, lmap[ 0 ] )
+        self.assertEqual( -2.0, lmap[ 1 ] )
+        self.assertEqual(  0.0, lmap[ 2 ] )
+        self.assertEqual(  2.0, lmap[ 3 ] )
+        self.assertEqual(  4.0, lmap[ 4 ] )
+        self.assertEqual(  6.0, lmap[ 5 ] )
+        self.assertEqual(  8.0, lmap[ 6 ] )
+        self.assertEqual( 10.0, lmap[ 7 ] )
+
+
+    #=========================================================================
+    def test_clipped_filled( self ):
+        """
+        Tests clipped and filled mapping.
+        """
+
+        # Simple direct mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0, 8 ), ( 0, 8 ) )
+
+        # Ensure no clipping or filling is enabled.
+        self.assertIsNone( lmap._clip )
+        self.assertIsNone( lmap._fill )
+        self.assertEqual( 0, lmap[ 0 ] )
+        self.assertEqual( 7, lmap[ 7 ] )
+
+        # Enable clipping and filling from target interval.
+        # This particular case symmetrically clips and fills which effecitvely
+        # restores the original mapping.
+        lmap.set_clip( ( 2, 6 ) )
+        lmap.set_fill( ( 2, 6 ) )
+
+        # Internal state test.
+        self.assertIsNotNone( lmap._clip )
+        self.assertIsInstance( lmap._clip, hzgfx.interval.Interval )
+        self.assertIsNotNone( lmap._fill )
+        self.assertIsInstance( lmap._fill, hzgfx.interval.Interval )
+
+        # Filling test.
+        self.assertEqual( 0.0, lmap[ 0 ] )
+        self.assertEqual( 1.0, lmap[ 1 ] )
+        self.assertEqual( 2.0, lmap[ 2 ] )
+        self.assertEqual( 3.0, lmap[ 3 ] )
+        self.assertEqual( 4.0, lmap[ 4 ] )
+        self.assertEqual( 5.0, lmap[ 5 ] )
+        self.assertEqual( 6.0, lmap[ 6 ] )
+        self.assertEqual( 7.0, lmap[ 7 ] )
 
 
     #=========================================================================
@@ -85,10 +206,20 @@ class TestLinearMap( unittest.TestCase ):
         self.assertAlmostEqual( 5.0, lmap[ 0.5 ] )
         self.assertAlmostEqual( 10.0, lmap[ 1.0 ] )
 
-        ### ZIH
-        # Zero-crossing mapping.
-        # Skewed mapping.
         # Inverted mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0.0, 1.0 ), ( 1.0, 0.0 ) )
+        self.assertAlmostEqual( 1.0, lmap[ 0.0 ] )
+        self.assertAlmostEqual( 0.9, lmap[ 0.1 ] )
+        self.assertAlmostEqual( 0.1, lmap[ 0.9 ] )
+        self.assertAlmostEqual( 0.0, lmap[ 1.0 ] )
+
+        # Mapping through origin.
+        lmap = hzgfx.cartmap.LinearMap( ( 5.0, -5.0 ), ( 0, 100 ) )
+        self.assertEqual( 0, lmap[ 5.0 ] )
+        self.assertEqual( 25, lmap[ 2.5 ] )
+        self.assertEqual( 50, lmap[ 0.0 ] )
+        self.assertEqual( 75, lmap[ -2.5 ] )
+        self.assertEqual( 100, lmap[ -5.0 ] )
 
 
 #=============================================================================

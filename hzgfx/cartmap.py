@@ -274,7 +274,7 @@ class LinearMap( object ):
         #b = self.target.start - a * self.source.start
 
         # Compute mapping coefficients.
-        a = deltay / deltax
+        a = deltay / float( deltax )
         b = starty - a * startx
         self._map = Line( a, b )
 
