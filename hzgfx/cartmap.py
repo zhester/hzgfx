@@ -105,34 +105,29 @@ class LinearMap( object ):
         """
         Initializes a LinearMap object.
 
-        @param source The source Interval of the mapping
-        @param target The target Interval of the mapping
-        @param clip   Specify clipping limits in the source
-        @param fill   Specify filling limits in the target
+        @param source The source interval of the mapping
+        @param target The target interval of the mapping
+        @param clip   Specify the clipping modification interval
+        @param fill   Specify the filling modification interval
+        @throws       ValueError if one of the intervals has no length
         """
 
+        # Initialize/create/default interval instances.
+        self.source = self._interval_argument( source )
+        self.target = self._interval_argument( target )
+
         # Check the intervals to make sure mapping would work.
-        if source.delta == 0:
+        if self.source.delta == 0:
             raise ValueError( 'Source interval must have non-zero domain.' )
-        if target.delta == 0:
+        if self.target.delta == 0:
             raise ValueError( 'Target interval must have non-zero domain.' )
 
-        # Save intervals to map state.
-        self.source = source
-        self.target = target
-
-        # Compute the default scaling coefficients.
-        a = target.delta / float( source.delta )
-        b = target.start - a * source.start
-        self._scale = Line( a, b )
-
-        # Initialize the clip boundaries.
-        self._clip = None
+        # Initialize the clip and fill boundaries.
         self.set_clip( clip )
-
-        # Initialize the fill boundaries.
-        self._fill = None
         self.set_fill( fill )
+
+        # Make sure the mapping function has been initialized.
+        self._update()
 
 
     #=========================================================================
@@ -147,111 +142,59 @@ class LinearMap( object ):
 
 
     #=========================================================================
-    @classmethod
-    def create( cls, source = None, target = None, clip = None, fill = None ):
-        """
-        Factory method to create linear maps using a wider variety of initial
-        information.
-
-        @param source The source Interval or limit(s) of the mapping
-        @param target The target Interval or limit(s) of the mapping
-        @param clip   Specify clipping limits in the source
-        @param fill   Specify filling limits in the target
-        """
-
-        # Check for the need to create interval instances.
-        if isinstance( source, interval.Interval ) == False:
-            source = interval.interval( source )
-        if isinstance( target, interval.Interval ) == False:
-            target = interval.interval( target )
-
-        # Create the object.
-        return cls( source, target, fill, clip )
-
-
-    #=========================================================================
-    def set_clip( self, lower = None, upper = None ):
+    def set_clip( self, clip = None ):
         """
         Sets or clears the clip mapping between intervals.
 
-        If both arguments are not given or None, the clip mapping is removed
-        from the map.
-
-        @param lower Lower limit of valid values in the source interval
-        @param upper Upper limit of valid values in the source interval
-        @throws      ValueError if the clip region has no size
+        @param clip If default or None, disables clipping.
+                    If an interval.Interval instance, it is used directly.
+                    Otherwise, this is the constructor argument to the
+                    interval.interval() factory function.
+        @throws     ValueError if the clip region has no size
         """
 
         # Check for disabled clipping.
-        if ( lower is None ) and ( upper is None ):
+        if clip is None:
             self._clip = None
             return
 
-        # Sequence-specified boundaries.
-        if isinstance( lower, ( tuple, list ) ):
-            lower = source.start if len( lower ) <= 0 else lower[ 0 ]
-            upper = source.stop  if len( lower ) <= 1 else lower[ 1 ]
+        # Set the clip interval.
+        self._clip = self._interval_argument( clip )
 
-        # Non-sequence boundaries.
-        else:
-            if lower is None:
-                lower = source.start
-            if upper is None:
-                upper = source.stop
+        # Sanity check interval.
+        if self._clip.delta == 0:
+            raise ValueError( 'Unable to use zero-length clipping interval.' )
 
-        # Compute and check boundary region.
-        delta = upper - lower
-        if delta == 0:
-            raise ValueError(
-                'Invalid clipping boundaries: {}, {}'.format( lower, upper )
-            )
-
-        # Compute clipping map coefficients.
-        a = self.target.delta / float( delta )
-        b = self.target.start - a * lower
-
-        # Set the clip mapping.
-        self._clip = Line( a, b )
+        # Update the mapping function.
+        self._update()
 
 
     #=========================================================================
-    def set_fill( self, lower = None, upper = None ):
+    def set_fill( self, fill = None ):
         """
         Sets or clears the fill mapping between intervals.
 
-        If both arguments are not given or None, the fill mapping is removed
-        from the map.
-
-        @param lower Lower limit of valid values in the target interval
-        @param upper Upper limit of valid values in the target interval
+        @param fill If default or None, disables filling.
+                    If an interval.Interval instance, it is used directly.
+                    Otherwise, this is the constructor argument to the
+                    interval.interval() factory function.
+        @throws     ValueError if the fill region has no size
         """
 
         # Check for disabled filling.
-        if ( lower is None ) and ( upper is None ):
+        if fill is None:
             self._fill = None
             return
 
-        # Sequence-specified boundaries.
-        if isinstance( lower, ( tuple, list ) ):
-            lower = target.start if len( lower ) <= 0 else lower[ 0 ]
-            upper = target.stop  if len( lower ) <= 1 else lower[ 1 ]
+        # Set the fill interval.
+        self._fill = self._interval_argument( fill )
 
-        # Non-sequence boundaries.
-        else:
-            if lower is None:
-                lower = target.start
-            if upper is None:
-                upper = target.stop
+        # Sanity check interval.
+        if self._fill.delta == 0:
+            raise ValueError( 'Unable to use zero-length filling interval.' )
 
-        # Compute boundary region.
-        delta = upper - lower
-
-        # Compute filling map coefficients.
-        a = delta / float( self.source.delta )
-        b = lower - a * self.source.start
-
-        # Set the fill mapping.
-        self._fill = Line( a, b )
+        # Update the mapping function.
+        self._update()
 
 
     #=========================================================================
@@ -263,8 +206,77 @@ class LinearMap( object ):
         @param point A point in the source interval
         @return      The corresponding point in the target interval
         """
-        ### ZIH - check self._clip and self._fill
-        return self._scale.a * point + self._scale.b
+        return self._map.a * point + self._map.b
+
+
+    #=========================================================================
+    @staticmethod
+    def _interval_argument( argument ):
+        """
+        Checks any initialization argument and converts it into an interval if
+        it isn't one already.
+
+        @param argument The argument to use for initialization
+        @return         A usable Interval object
+        """
+
+        # Check for instances of Interval.
+        if isinstance( argument, interval.Interval ):
+            return argument
+
+        # Attempt to use the argument to create an interval.
+        return interval.interval( argument )
+
+
+    #=========================================================================
+    def _update( self ):
+        """
+        Updates the mapping relationship given the current object state.
+
+        The relationship is modified if there is an active clip or fill.
+        Otherwise, the default relationship is used.
+        """
+
+        # Initially, assume mapping is direct or scaled between intervals.
+        startx = self.source.start
+        starty = self.target.start
+        deltax = self.source.delta
+        deltay = self.target.delta
+
+        # Check for a clipping interval.
+        if self._clip is not None:
+
+            # Adjust mapping values to clip.
+            starty = self._clip.start
+            deltay = self._clip.delta
+
+        # Check for a filling interval.
+        if self._fill is not None:
+
+            # Adjust mapping values to fill.
+            startx = self._fill.start
+            deltax = self._fill.delta
+
+        ### ZIH - old formulas (independently verified)
+
+        # Compute clipping map coefficients.
+        #a = self.target.delta / float( delta )
+        #b = self.target.start - a * lower
+        #clip_line = Line( a, b )
+
+        # Compute filling map coefficients.
+        #a = delta / float( self.source.delta )
+        #b = lower - a * self.source.start
+        #fill_line = Line( a, b )
+
+        # Compute the default scaling coefficients.
+        #a = self.target.delta / float( self.source.delta )
+        #b = self.target.start - a * self.source.start
+
+        # Compute mapping coefficients.
+        a = deltay / deltax
+        b = starty - a * startx
+        self._map = Line( a, b )
 
 
 #=============================================================================

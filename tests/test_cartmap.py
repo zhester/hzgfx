@@ -13,6 +13,82 @@ cartmap Module Unit Tests
 import unittest
 
 import hzgfx.cartmap
+import hzgfx.interval
+
+
+
+#=============================================================================
+class TestLinearMap( unittest.TestCase ):
+    """
+    Tests the LinearMap class.
+    """
+
+
+    #=========================================================================
+    def test_init( self ):
+        """
+        Tests the __init__ method.
+        """
+
+        # Make sure both intervals are validated during intialization.
+        with self.assertRaises( ValueError ):
+            lmap = hzgfx.cartmap.LinearMap( ( 0, 0 ), ( 0, 5 ) )
+        with self.assertRaises( ValueError ):
+            lmap = hzgfx.cartmap.LinearMap( ( 0, 5 ), ( 0, 0 ) )
+
+        # Check for proper use of existing intervals.
+        source = hzgfx.interval.Interval( 0, 10 )
+        target = hzgfx.interval.Interval( 0, 10 )
+        lmap = hzgfx.cartmap.LinearMap( source, target )
+        self.assertIs( source, lmap.source )
+        self.assertIs( target, lmap.target )
+
+        # Make sure intervals can be magically constructed.
+        lmap = hzgfx.cartmap.LinearMap( ( 0, 5 ), ( 0, 5 ) )
+        self.assertIsInstance( lmap.source, hzgfx.interval.Interval )
+        self.assertIsInstance( lmap.target, hzgfx.interval.Interval )
+        lmap = hzgfx.cartmap.LinearMap( ( 0.0, 1.0 ), ( 0.0, 1.0 ) )
+        self.assertIsInstance( lmap.source, hzgfx.interval.RealInterval )
+        self.assertIsInstance( lmap.target, hzgfx.interval.RealInterval )
+
+        # Check a few internal intializations.
+        ### ZIH
+        # lmap._map
+        # lmap._clip
+        # lmap._fill
+
+
+    #=========================================================================
+    def test_translate( self ):
+        """
+        Tests the translate and __getitem__ methods.
+        """
+
+        # Simple direct mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0, 4 ), ( 0, 4 ) )
+        self.assertEqual( 0, lmap[ 0 ] )
+        self.assertEqual( 1, lmap[ 1 ] )
+        self.assertEqual( 2, lmap[ 2 ] )
+        self.assertEqual( 3, lmap[ 3 ] )
+
+        # Simple continuous mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0.0, 1.0 ), ( 0.0, 1.0 ) )
+        self.assertAlmostEqual( 0.0, lmap[ 0.0 ] )
+        self.assertAlmostEqual( 0.1, lmap[ 0.1 ] )
+        self.assertAlmostEqual( 0.5, lmap[ 0.5 ] )
+        self.assertAlmostEqual( 1.0, lmap[ 1.0 ] )
+
+        # Simple scaled mapping.
+        lmap = hzgfx.cartmap.LinearMap( ( 0.0, 1.0 ), ( 0.0, 10.0 ) )
+        self.assertAlmostEqual( 0.0, lmap[ 0.0 ] )
+        self.assertAlmostEqual( 1.0, lmap[ 0.1 ] )
+        self.assertAlmostEqual( 5.0, lmap[ 0.5 ] )
+        self.assertAlmostEqual( 10.0, lmap[ 1.0 ] )
+
+        ### ZIH
+        # Zero-crossing mapping.
+        # Skewed mapping.
+        # Inverted mapping.
 
 
 #=============================================================================
