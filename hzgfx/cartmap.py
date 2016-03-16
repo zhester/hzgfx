@@ -257,22 +257,6 @@ class LinearMap( object ):
             startx = self._fill.start
             deltax = self._fill.delta
 
-        ### ZIH - old formulas (independently verified)
-
-        # Compute clipping map coefficients.
-        #a = self.target.delta / float( delta )
-        #b = self.target.start - a * lower
-        #clip_line = Line( a, b )
-
-        # Compute filling map coefficients.
-        #a = delta / float( self.source.delta )
-        #b = lower - a * self.source.start
-        #fill_line = Line( a, b )
-
-        # Compute the default scaling coefficients.
-        #a = self.target.delta / float( self.source.delta )
-        #b = self.target.start - a * self.source.start
-
         # Compute mapping coefficients.
         a = deltay / float( deltax )
         b = starty - a * startx
